@@ -88,8 +88,21 @@ createInterval({
 			const user = convo.members.find((member) => member.did !== did)!;
 			const viewer = user.viewer!;
 
-			// Ignore if the follows aren't mutual, or if blocked
-			if (!viewer.following || !viewer.followedBy || viewer.blocking || viewer.blockedBy) {
+			// Delete conversation if blocking
+			if (viewer.blocking || viewer.blockedBy) {
+				await chatter.call('chat.bsky.convo.leaveConvo', { data: { convoId: convo.id } });
+				continue;
+			}
+
+			// Warn if not following
+			if (!viewer.followedBy) {
+				await sendMessage(convo, `👋 Belum follow nih? Follow dulu!`);
+				continue;
+			}
+
+			// Warn if we haven't followed back
+			if (!viewer.following) {
+				await sendMessage(convo, `👋 Tunggu follow-back nya dulu ya!`);
 				continue;
 			}
 
