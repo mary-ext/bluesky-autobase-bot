@@ -77,10 +77,12 @@ createInterval({
 			// - No last message (how?)
 			// - Last message is deleted
 			// - Sender is us (we send a reply to mark that we've processed it)
+			// - We've read the conversation (probably means we're blocking)
 			if (
 				!lastMessage ||
 				lastMessage.$type !== 'chat.bsky.convo.defs#messageView' ||
-				lastMessage.sender.did === did
+				lastMessage.sender.did === did ||
+				convo.unreadCount === 0
 			) {
 				continue;
 			}
@@ -88,9 +90,9 @@ createInterval({
 			const user = convo.members.find((member) => member.did !== did)!;
 			const viewer = user.viewer!;
 
-			// Delete conversation if blocking
+			// Mark as read if blocking
 			if (viewer.blocking || viewer.blockedBy) {
-				await chatter.call('chat.bsky.convo.leaveConvo', { data: { convoId: convo.id } });
+				await chatter.call('chat.bsky.convo.updateRead', { data: { convoId: convo.id } });
 				continue;
 			}
 
