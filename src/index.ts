@@ -102,14 +102,12 @@ createInterval({
 			// Warn if not following
 			if (!viewer.followedBy) {
 				await sendMessage(convo, `👋 Belum follow nih? Follow dulu!`);
-				await updateRead(convo);
 				continue;
 			}
 
 			// Warn if we haven't followed back
 			if (!viewer.following) {
 				await sendMessage(convo, `👋 Tunggu follow-back nya dulu ya!`);
-				await updateRead(convo);
 				continue;
 			}
 
@@ -118,14 +116,12 @@ createInterval({
 			// Warn if the text is too long
 			if (length > MAX_POSTS_LENGTH) {
 				await sendMessage(convo, `💢 Kepanjangan!`);
-				await updateRead(convo);
 				continue;
 			}
 
 			// Warn if there's nothing to send
 			if (lastMessage.text.trim().length === 0) {
 				await sendMessage(convo, `💢 Kosong!`);
-				await updateRead(convo);
 				continue;
 			}
 
@@ -150,7 +146,6 @@ createInterval({
 
 			// We've sent the post, so let's send a reply to mark we're done here.
 			await sendMessage(convo, `📝 Terkirim`);
-			await updateRead(convo);
 		}
 	},
 	handleError(err) {
