@@ -1,0 +1,18 @@
+{
+	"private": true,
+	"type": "module",
+	"name": "bluesky-yapper",
+	"scripts": {
+		"fmt": "prettier --cache --write .",
+		"start": "bun src/index.ts"
+	},
+	"dependencies": {
+		"@badrap/valita": "npm:@jsr/badrap__valita",
+		"@mary/bluesky-client": "npm:@jsr/mary__bluesky-client"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"prettier": "^3.2.5",
+		"typescript": "^5.4.5"
+	}
+}
