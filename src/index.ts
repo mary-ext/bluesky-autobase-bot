@@ -85,6 +85,14 @@ createInterval({
 				continue;
 			}
 
+			const user = convo.members.find((member) => member.did !== did)!;
+			const viewer = user.viewer!;
+
+			// Ignore if the follows aren't mutual, or if blocked
+			if (!viewer.following || !viewer.followedBy || viewer.blocking || viewer.blockedBy) {
+				continue;
+			}
+
 			const length = countGraphemes(lastMessage.text);
 
 			// Warn if the text is too long
