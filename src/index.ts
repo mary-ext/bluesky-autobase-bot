@@ -51,10 +51,13 @@ const chatter = withProxy(rpc, { service: env.CHAT_SERVICE_DID as any, type: 'bs
 
 const sendMessage = (convo: ChatBskyConvoDefs.ConvoView, text: string) => {
 	return chatter.call('chat.bsky.convo.sendMessage', {
-		data: {
-			convoId: convo.id,
-			message: { text: text },
-		},
+		data: { convoId: convo.id, message: { text: text } },
+	});
+};
+
+const updateRead = (convo: ChatBskyConvoDefs.ConvoView) => {
+	return chatter.call('chat.bsky.convo.updateRead', {
+		data: { convoId: convo.id },
 	});
 };
 
@@ -74,15 +77,15 @@ createInterval({
 			const lastMessage = convo.lastMessage;
 
 			// Skip if:
+			// - We've read the conversation (probably means we're blocking)
 			// - No last message (how?)
 			// - Last message is deleted
 			// - Sender is us (we send a reply to mark that we've processed it)
-			// - We've read the conversation (probably means we're blocking)
 			if (
+				convo.unreadCount === 0 ||
 				!lastMessage ||
 				lastMessage.$type !== 'chat.bsky.convo.defs#messageView' ||
-				lastMessage.sender.did === did ||
-				convo.unreadCount === 0
+				lastMessage.sender.did === did
 			) {
 				continue;
 			}
@@ -92,19 +95,21 @@ createInterval({
 
 			// Mark as read if blocking
 			if (viewer.blocking || viewer.blockedBy) {
-				await chatter.call('chat.bsky.convo.updateRead', { data: { convoId: convo.id } });
+				await updateRead(convo);
 				continue;
 			}
 
 			// Warn if not following
 			if (!viewer.followedBy) {
 				await sendMessage(convo, `👋 Belum follow nih? Follow dulu!`);
+				await updateRead(convo);
 				continue;
 			}
 
 			// Warn if we haven't followed back
 			if (!viewer.following) {
 				await sendMessage(convo, `👋 Tunggu follow-back nya dulu ya!`);
+				await updateRead(convo);
 				continue;
 			}
 
@@ -113,12 +118,14 @@ createInterval({
 			// Warn if the text is too long
 			if (length > MAX_POSTS_LENGTH) {
 				await sendMessage(convo, `💢 Kepanjangan!`);
+				await updateRead(convo);
 				continue;
 			}
 
 			// Warn if there's nothing to send
 			if (lastMessage.text.trim().length === 0) {
 				await sendMessage(convo, `💢 Kosong!`);
+				await updateRead(convo);
 				continue;
 			}
 
@@ -143,6 +150,7 @@ createInterval({
 
 			// We've sent the post, so let's send a reply to mark we're done here.
 			await sendMessage(convo, `📝 Terkirim`);
+			await updateRead(convo);
 		}
 	},
 	handleError(err) {
