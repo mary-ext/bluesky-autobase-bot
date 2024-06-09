@@ -58,21 +58,28 @@ await auth.login({
 	password: env.ACCOUNT_PASSWORD,
 });
 
+const did = auth.session!.did;
+console.log(`[-] signed in (@${auth.session!.handle})`);
+
 // 3. Verify that we have access to DMs
 {
 	const accessJwt = decodeJwt(auth.session!.accessJwt) as AtpAccessJwt;
 	const scope = accessJwt.scope;
 
 	if (scope === 'com.atproto.appPass') {
-		console.error(`[!] signed in without access to DMs! incorrect password type`);
+		console.error(`[!] no access to DMs! incorrect password type`);
 		process.exit(1);
 	}
 }
 
-const did = auth.session!.did;
-console.log(`[-] signed in (@${auth.session!.handle})`);
+// 4. Verify that we're not signed in to the owner account
+if (did === env.OWNER_DID) {
+	console.error(`[!] OWNER_DID incorrectly set to the bot account (${did})`);
+	console.error(`    please set it to a different account`);
+	process.exit(1);
+}
 
-// 4. Create a proxy to the actual DM service
+// 5. Create a proxy to the actual DM service
 const chatter = withProxy(rpc, { service: env.CHAT_SERVICE_DID as any, type: 'bsky_chat' });
 
 const sendMessage = (convo: ChatBskyConvoDefs.ConvoView, text: string) => {
