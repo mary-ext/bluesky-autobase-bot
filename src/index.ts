@@ -61,7 +61,14 @@ await auth.login({
 const did = auth.session!.did;
 console.log(`[-] signed in (@${auth.session!.handle})`);
 
-// 3. Verify that we have access to DMs
+// 3. Verify that we're not signed in to the owner account
+if (did === env.OWNER_DID) {
+	console.error(`[!] OWNER_DID incorrectly set to the bot account (${did})`);
+	console.error(`    please set it to a different account`);
+	process.exit(1);
+}
+
+// 4. Verify that we have access to DMs
 {
 	const accessJwt = decodeJwt(auth.session!.accessJwt) as AtpAccessJwt;
 	const scope = accessJwt.scope;
@@ -70,13 +77,6 @@ console.log(`[-] signed in (@${auth.session!.handle})`);
 		console.error(`[!] no access to DMs! incorrect password type`);
 		process.exit(1);
 	}
-}
-
-// 4. Verify that we're not signed in to the owner account
-if (did === env.OWNER_DID) {
-	console.error(`[!] OWNER_DID incorrectly set to the bot account (${did})`);
-	console.error(`    please set it to a different account`);
-	process.exit(1);
 }
 
 // 5. Create a proxy to the actual DM service
