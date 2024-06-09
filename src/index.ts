@@ -21,7 +21,7 @@ const MESSAGES = {
 	MENFESS_REPORT_ON: `🤖 Bot telah jalan, monitoring menfess menyala`,
 } as const;
 
-//
+// Actual bot logic
 const MAX_POSTS_LENGTH = 300;
 
 const boolStringSchema = v.union(v.literal('false'), v.literal('true')).chain((r) => v.ok(r === 'true'));
