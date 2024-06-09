@@ -9,7 +9,7 @@
    1. Lanjut ke Preferensi -> Kata sandi Aplikasi -> Tambahkan kata sandi aplikasi
    2. Centang akses ke DM
    3. Isi `ACCOUNT_IDENTIFIER` dan `ACCOUNT_PASSWORD` dengan kata sandi yang dibuat
-5. Ambil DID akun pemilik (untuk nyala/matikan bot)\
+5. Ambil DID akun pemilik (untuk memberikan perintah)\
    DID adalah identifikasi akun unik yang tidak berubah walaupun ganti username
    1. Buka [internect.info](https://internect.info/)
    2. Masukkan username/domain akun pemilik
@@ -18,11 +18,10 @@
 
 Bot mengirim postingan dengan awalan yang ditentukan `MENFESS_PREFIX`.
 
-Bot akan langsung memonitorkan DM ketika dijalankan, yang bisa diatur dengan `MENFESS_WATCH_AT_LAUNCH`, ubah
-ke `false` untuk tidak langsung monitor.
-
-Monitoring bisa dimatikan dan dinyalakan saat beroperasi, dengan perintah yang ditentukan di
-`MENFESS_TOGGLE_COMMAND`, perintah hanya akan diterima dari akun yang disebutkan `OWNER_DID`.
-
-`MENFESS_REPORT_AT_LAUNCH` mengatur jika bot nya perlu melaporkan status monitoring ke pemilik akun
+`MENFESS_REPORT_AT_LAUNCH` mengatur jika bot nya perlu melaporkan status ke pemilik akun
 (`OWNER_DID`) saat dijalankan, bermanfaat sebagai pengingat. Ubah ke `false` jika tidak perlu.
+
+Perintah yang dapat dijalankan oleh pemilik akun (`OWNER_DID`)
+
+- `-toggle-watch`: Aktifkan/matikan monitoring DM untuk menfess
+- `-toggle-follow`: Aktifkan/matikan persyaratan follow-back

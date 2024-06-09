@@ -1,10 +1,9 @@
-import * as v from '@badrap/valita';
-
 import { BskyAuth, BskyXRPC, type AtpAccessJwt } from '@mary/bluesky-client';
-import type { AppBskyFeedPost, At, ChatBskyConvoDefs } from '@mary/bluesky-client/lexicons';
+import type { AppBskyFeedPost, ChatBskyConvoDefs } from '@mary/bluesky-client/lexicons';
 import { decodeJwt } from '@mary/bluesky-client/utils/jwt';
 import { withProxy } from '@mary/bluesky-client/xrpc';
 
+import { EnvironmentSchema, StateStringSchema } from './schema';
 import { countGraphemes, createInterval } from './utils';
 
 const MESSAGES = {
@@ -14,36 +13,19 @@ const MESSAGES = {
 	MENFESS_EMPTY: `💢 Kosong!`,
 	MENFESS_SENT: `📝 Terkirim`,
 
-	MENFESS_ON: `☀️ Monitoring menfess telah dinyalakan`,
-	MENFESS_OFF: `🌙 Monitoring menfess telah dimatikan`,
-
-	MENFESS_REPORT_OFF: `🤖 Bot telah jalan, monitoring menfess mati`,
-	MENFESS_REPORT_ON: `🤖 Bot telah jalan, monitoring menfess menyala`,
+	MENFESS_REPORT: `🤖 Bot telah jalan`,
 } as const;
 
 // Actual bot logic
 const MAX_POSTS_LENGTH = 300;
 
-const boolStringSchema = v.union(v.literal('false'), v.literal('true')).chain((r) => v.ok(r === 'true'));
-const didStringSchema = v.string().assert((r): r is At.DID => r.startsWith('did:'));
+const env = EnvironmentSchema.parse(process.env, { mode: 'strip' });
 
-const env = v
-	.object({
-		ACCOUNT_SERVICE: v.string().default('https://bsky.social'),
-		ACCOUNT_IDENTIFIER: v.string(),
-		ACCOUNT_PASSWORD: v.string(),
-
-		MENFESS_PREFIX: v.string(),
-		MENFESS_WATCH_AT_LAUNCH: boolStringSchema,
-		MENFESS_REPORT_AT_LAUNCH: boolStringSchema,
-		MENFESS_TOGGLE_COMMAND: v.string(),
-
-		OWNER_DID: didStringSchema,
-
-		CHAT_SERVICE_DID: didStringSchema.default('did:web:api.bsky.chat'),
-		// PERSISTENCE_FILE: v.string().default('./data/state.v1.json'),
-	})
-	.parse(process.env, { mode: 'strip' });
+const state = StateStringSchema.parse(
+	await Bun.file(env.STATE_PERSISTENCE_FILE)
+		.text()
+		.catch((_) => undefined),
+);
 
 // 1. Create RPC client and authentication middleware
 const rpc = new BskyXRPC({ service: env.ACCOUNT_SERVICE });
@@ -82,6 +64,10 @@ if (did === env.OWNER_DID) {
 // 5. Create a proxy to the actual DM service
 const chatter = withProxy(rpc, { service: env.CHAT_SERVICE_DID as any, type: 'bsky_chat' });
 
+const writeState = () => {
+	return Bun.write(env.STATE_PERSISTENCE_FILE, JSON.stringify(state, null, '\t'));
+};
+
 const sendMessage = (convo: ChatBskyConvoDefs.ConvoView, text: string) => {
 	return chatter.call('chat.bsky.convo.sendMessage', {
 		data: { convoId: convo.id, message: { text: text } },
@@ -93,8 +79,6 @@ const updateRead = (convo: ChatBskyConvoDefs.ConvoView) => {
 		data: { convoId: convo.id },
 	});
 };
-
-let running = env.MENFESS_WATCH_AT_LAUNCH;
 
 createInterval({
 	delay: 5_000,
@@ -129,26 +113,31 @@ createInterval({
 			const viewer = user.viewer!;
 
 			if (user.did === env.OWNER_DID) {
-				// Check if it's the toggle running command
-				if (lastMessage.text === env.MENFESS_TOGGLE_COMMAND) {
-					if (running) {
-						running = false;
+				if (lastMessage.text === `-toggle-watch`) {
+					state.menfess_watch = !state.menfess_watch;
 
-						await sendMessage(convo, MESSAGES.MENFESS_OFF);
-						await updateRead(convo);
-					} else {
-						running = true;
+					await writeState();
 
-						await sendMessage(convo, MESSAGES.MENFESS_ON);
-						await updateRead(convo);
-					}
+					await sendMessage(convo, `watch: ${state.menfess_watch ? `on` : `off`}`);
+					await updateRead(convo);
+
+					continue;
+				}
+
+				if ((lastMessage.text = `-toggle-follow`)) {
+					state.menfess_require_followback = !state.menfess_require_followback;
+
+					await writeState();
+
+					await sendMessage(convo, `require_followback: ${state.menfess_require_followback ? `on` : `off`}`);
+					await updateRead(convo);
 
 					continue;
 				}
 			}
 
 			// Check if we're running, and see if the text starts with the prefix
-			if (running && lastMessage.text.startsWith(env.MENFESS_PREFIX + ' ')) {
+			if (state.menfess_watch && lastMessage.text.startsWith(env.MENFESS_PREFIX + ' ')) {
 				// Mark as read if blocking
 				if (viewer.blocking || viewer.blockedBy) {
 					await updateRead(convo);
@@ -163,7 +152,7 @@ createInterval({
 				}
 
 				// Warn if we haven't followed back
-				if (!viewer.following) {
+				if (state.menfess_require_followback && !viewer.following) {
 					await sendMessage(convo, MESSAGES.MENFESS_NEED_FOLLOWBACK);
 					await updateRead(convo);
 					continue;
@@ -229,9 +218,10 @@ if (env.MENFESS_REPORT_AT_LAUNCH) {
 
 	const convo = response.data.convo;
 
-	if (running) {
-		await sendMessage(convo, MESSAGES.MENFESS_REPORT_ON);
-	} else {
-		await sendMessage(convo, MESSAGES.MENFESS_REPORT_OFF);
-	}
+	const message =
+		MESSAGES.MENFESS_REPORT +
+		`\n    menfess_watch: ${state.menfess_watch ? `on` : `off`}` +
+		`\n    menfess_require_followback: ${state.menfess_require_followback ? `on` : `off`}`;
+
+	await sendMessage(convo, message);
 }
