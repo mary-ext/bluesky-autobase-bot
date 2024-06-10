@@ -124,7 +124,7 @@ createInterval({
 					continue;
 				}
 
-				if ((lastMessage.text = `-toggle-follow`)) {
+				if (lastMessage.text === `-toggle-follow`) {
 					state.menfess_require_followback = !state.menfess_require_followback;
 
 					await writeState();
